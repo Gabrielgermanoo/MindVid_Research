@@ -6,7 +6,9 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 import yt_dlp as youtube_dl
 from dotenv import load_dotenv
-
+import pandas as pd
+import time
+import os
 
 capabilities = dict(
     platformName='Android',
@@ -81,25 +83,22 @@ def searching(driver, text):
     find_reels.click()
     del find_reels
 
-def downloading_videos(driver):
+def downloading_videos(driver, save_directory, key):
     videos = 0
     cont = 0
-    urls = []
-    save_directory = "D:/Gabriel/UFAL/Pesquisa/fake_videos/Appium/Videos"
-
-    ydl_opts = {
-        'format': 'bestaudio/best',
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'wav',
-            'preferredquality': '192',
-        }],
-        'outtmpl': save_directory + '/%(title)s.%(ext)s',
-    }
-
-    while cont < 50:
-        likes = WebDriverWait(driver, 10).until(EC.presence_of_element_located((AppiumBy.XPATH, "//android.view.ViewGroup[contains(@content-desc, 'Like number is')]")))
-        likes.click()
+    urls = pd.DataFrame(columns=[ 'ID','Link'])
+    
+    while cont < 100:
+        try:
+            likes = WebDriverWait(driver, 10).until(EC.presence_of_element_located((AppiumBy.XPATH, "//android.view.ViewGroup[contains(@content-desc, 'Like number is')]")))
+            likes.click()
+        except TimeoutException:
+            try:
+                likes = WebDriverWait(driver, 10).until(EC.presence_of_element_located((AppiumBy.XPATH, "//android.view.ViewGroup[contains(@content-desc, 'View likes')]")))
+                likes.click()
+            except TimeoutException:
+                driver.swipe(500, 1500, 500, 500, 1000)
+                continue
         del likes
         try:
             views_string = WebDriverWait(driver, 10).until(EC.presence_of_element_located((AppiumBy.ID, "com.instagram.android:id/play_count_text")))
@@ -116,8 +115,18 @@ def downloading_videos(driver):
             del share_button
             copied_link = WebDriverWait(driver, 10).until(EC.presence_of_element_located((AppiumBy.XPATH, '//android.widget.ImageView[@content-desc="Copy link"]'))).click()
             link = driver.get_clipboard_text()
-            urls.append(link)
+            urls.loc[cont] = [cont, link]
+            urls.to_csv(save_directory + '/' + key + '.csv', index=False)
             del copied_link
+            ydl_opts = {
+            'format': 'bestaudio/best',
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'wav',
+                'preferredquality': '192',
+            }],
+            'outtmpl': save_directory + '/' + str(cont) + '%(title)s.%(ext)s',
+            }
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([link])
 
@@ -129,21 +138,32 @@ def downloading_videos(driver):
         f"Total de vídeos com mais de 100k views: {cont}")
 
 hashtags_list = {
-    "ansiedade": {"#ansiedade", "#transtorno_de_ansiedade"},
-    "depressao": {"#depressao", "#transtorno_depressivo"},
-    "TDAH": {"#TDAH", "#transtorno_de_deficit_de_atencao_hiperatividade"},
-    "TEA": {"#TEA", "autismo", "#transtorno_do_espectro_autista"},
+    "ansiedade": {"#ansiedade", "#transtornodeansiedade"},
+    "depressao": {"#depressao", "#transtornodepressivo"},
+    "TDAH": {"#TDAH", "#transtornodedeficitdeatencaohiperatividade"},
+    "TEA": {"#TEA", "autismo", "#transtornodoespectroautista"},
 }
 
 
 def main():
     driver = config()
+    time.sleep(5)
     openInstagramApp(driver)
     #login(driver)
+    if os.path.exists('Videos') == False:
+        os.path.mkdir('Videos')
+        save_directory = "D:/Gabriel/UFAL/Pesquisa/fake_videos/Appium/Videos"
+    else:
+        save_directory = "D:/Gabriel/UFAL/Pesquisa/fake_videos/Appium/Videos"
     for key, value in hashtags_list.items():
         for hashtag in value:
             searching(driver, hashtag)
-            downloading_videos(driver)
+            if os.path.exists(save_directory + '/' + key) == False:
+                os.mkdir(save_directory + '/' + key)
+                save_directory = save_directory + '/' + key
+            else:
+                save_directory = save_directory + '/' + key
+            downloading_videos(driver, save_directory, key)
 
 if __name__ == '__main__':
     main()
