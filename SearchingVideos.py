@@ -113,7 +113,7 @@ def downloading_videos(driver, save_directory, key):
             share_button = WebDriverWait(driver, 10).until(EC.presence_of_element_located((AppiumBy.XPATH, '//android.widget.ImageView[@content-desc="Share"]')))
             share_button.click()
             del share_button
-            copied_link = WebDriverWait(driver, 10).until(EC.presence_of_element_located((AppiumBy.XPATH, '//android.widget.ImageView[@content-desc="Copy link"]'))).click()
+            copied_link = WebDriverWait(driver, 10).until(EC.presence_of_element_located((AppiumBy.XPATH, '//android.widget.TextView[@resource-id="com.instagram.android:id/label" and @text="Copy link"]'))).click()
             link = driver.get_clipboard_text()
             urls.loc[cont] = [cont, link]
             urls.to_csv(save_directory + '/' + key + '.csv', index=False)
@@ -125,7 +125,7 @@ def downloading_videos(driver, save_directory, key):
                 'preferredcodec': 'wav',
                 'preferredquality': '192',
             }],
-            'outtmpl': save_directory + '/' + str(cont) + '%(title)s.%(ext)s',
+            'outtmpl': save_directory + '/' + str(cont) + '_%(id)s.%(ext)s',
             }
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([link])
@@ -138,10 +138,10 @@ def downloading_videos(driver, save_directory, key):
         f"Total de vídeos com mais de 100k views: {cont}")
 
 hashtags_list = {
-    "ansiedade": {"#ansiedade", "#transtornodeansiedade"},
-    "depressao": {"#depressao", "#transtornodepressivo"},
-    "TDAH": {"#TDAH", "#transtornodedeficitdeatencaohiperatividade"},
-    "TEA": {"#TEA", "autismo", "#transtornodoespectroautista"},
+    "ansiedade": ["#ansiedade", "#transtornodeansiedade"],
+    "depressao": ["#depressao", "#transtornodepressivo"],
+    "TDAH": ["#TDAH", "#transtornodedeficitdeatencaohiperatividade"],
+    "TEA": ["#TEA", "autismo", "#transtornodoespectroautista"],
 }
 
 
@@ -151,7 +151,7 @@ def main():
     openInstagramApp(driver)
     #login(driver)
     if os.path.exists('Videos') == False:
-        os.path.mkdir('Videos')
+        os.mkdir('Videos')
         save_directory = "D:/Gabriel/UFAL/Pesquisa/fake_videos/Appium/Videos"
     else:
         save_directory = "D:/Gabriel/UFAL/Pesquisa/fake_videos/Appium/Videos"
