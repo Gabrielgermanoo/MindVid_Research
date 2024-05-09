@@ -53,6 +53,11 @@ def login(driver):
     
     login_button = driver.find_element(AppiumBy.XPATH, "//android.widget.Button[@content-desc='Log in']/android.view.ViewGroup").click()
 
+def is_link_in_csv(link, csv_file):
+    df = pd.read_csv(csv_file)
+    return df['Link'].str.contains(link).any()
+    
+
 def searching(driver, text):
     # Procurar botão de pesquisa
     click_on_search = driver.find_element(AppiumBy.XPATH, '(//android.widget.ImageView[@resource-id="com.instagram.android:id/tab_icon"])[3]')
@@ -84,11 +89,12 @@ def searching(driver, text):
     del find_reels
 
 def downloading_videos(driver, save_directory, key):
+    load_dotenv()
     videos = 0
     cont = 0
     urls = pd.DataFrame(columns=[ 'ID','Link'])
-    
-    while cont < 100:
+    csv_path = os.getenv('CSV_PATH')
+    while cont < 20:
         try:
             likes = WebDriverWait(driver, 10).until(EC.presence_of_element_located((AppiumBy.XPATH, "//android.view.ViewGroup[contains(@content-desc, 'Like number is')]")))
             likes.click()
@@ -115,33 +121,42 @@ def downloading_videos(driver, save_directory, key):
             del share_button
             copied_link = WebDriverWait(driver, 10).until(EC.presence_of_element_located((AppiumBy.XPATH, '//android.widget.TextView[@resource-id="com.instagram.android:id/label" and @text="Copy link"]'))).click()
             link = driver.get_clipboard_text()
-            urls.loc[cont] = [cont, link]
-            urls.to_csv(save_directory + '/' + key + '.csv', index=False)
-            del copied_link
-            ydl_opts = {
-            'format': 'bestaudio/best',
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'wav',
-                'preferredquality': '192',
-            }],
-            'outtmpl': save_directory + '/' + str(cont) + '_%(id)s.%(ext)s',
-            }
-            with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([link])
-
-            cont += 1
-        videos += 1
+            if not is_link_in_csv(link, csv_path + '/' + key + '.csv'):
+                urls.loc[cont] = [cont, link]
+                urls.to_csv(csv_path + '/' + key + '.csv', index=False)
+                del copied_link
+                ydl_opts = {
+                    'format': 'bestaudio/best',
+                    'postprocessors': [{
+                        'key': 'FFmpegExtractAudio',
+                        'preferredcodec': 'wav',
+                        'preferredquality': '192',
+                    }],
+                    'outtmpl': save_directory + '/' + str(cont) + '_%(id)s.%(ext)s',
+                    }
+                try:
+                    with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+                        ydl.download([link])
+                    cont += 1
+                except youtube_dl.utils.DownloadError:
+                    urls = urls.drop(cont)
+                    urls = urls.reset_index(drop=True)
+                    urls.to_csv(csv_path + '/' + key + '.csv', index=False)
+                
+        
+        if not is_link_in_csv(link, csv_path + '/' + key + '.csv'):
+            videos += 1
         driver.swipe(500, 1500, 500, 500, 1000)
 
     print(f"Total de vídeos: {videos}"
         f"Total de vídeos com mais de 100k views: {cont}")
 
+
 hashtags_list = {
-    "ansiedade": ["#ansiedade", "#transtornodeansiedade"],
-    "depressao": ["#depressao", "#transtornodepressivo"],
-    "TDAH": ["#TDAH", "#transtornodedeficitdeatencaohiperatividade"],
-    "TEA": ["#TEA", "autismo", "#transtornodoespectroautista"],
+    # "ansiedade": ["#ansiedade", "#transtornodeansiedade"],
+    # "depressao": ["#depressao", "#transtornodepressivo"],
+    # "TDAH": ["#TDAH", "#transtornodedeficitdeatencaohiperatividade"],
+    "TEA": ["#autismo", "#transtornodoespectroautista"],
 }
 
 
@@ -152,9 +167,9 @@ def main():
     #login(driver)
     if os.path.exists('Videos') == False:
         os.mkdir('Videos')
-        save_directory = "D:/Gabriel/UFAL/Pesquisa/fake_videos/Appium/Videos"
+        save_directory = os.getenv('SAVE_DIRECTORY')
     else:
-        save_directory = "D:/Gabriel/UFAL/Pesquisa/fake_videos/Appium/Videos"
+        save_directory = os.getenv('SAVE_DIRECTORY')
     for key, value in hashtags_list.items():
         for hashtag in value:
             searching(driver, hashtag)
