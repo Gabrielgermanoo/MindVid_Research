@@ -58,11 +58,17 @@ def is_link_in_csv(link, csv_file):
     return df['Link'].str.contains(link).any()
     
 
-def searching(driver, text):
+def searching(driver, text, first):
     # Procurar botão de pesquisa
-    click_on_search = driver.find_element(AppiumBy.XPATH, '(//android.widget.ImageView[@resource-id="com.instagram.android:id/tab_icon"])[3]')
-    click_on_search.click()
-    del click_on_search
+    if first == True:
+        # print("Passou")
+        click_on_search = driver.find_element(AppiumBy.XPATH, '(//android.widget.ImageView[@resource-id="com.instagram.android:id/tab_icon"])[3]')
+        click_on_search.click()
+        del click_on_search
+    else:
+        click_on_search = driver.find_element(AppiumBy.XPATH, '(//android.widget.ImageView[@resource-id="com.instagram.android:id/tab_icon"])[2]')
+        click_on_search.click()
+        del click_on_search
     search = driver.find_element(AppiumBy.XPATH, '//android.widget.EditText[@resource-id="com.instagram.android:id/action_bar_search_edit_text"]').click()
     search = driver.find_element(AppiumBy.XPATH, '//android.widget.EditText[@resource-id="com.instagram.android:id/action_bar_search_edit_text"]').clear()
     # Enviar texto para o campo de pesquisa
@@ -94,7 +100,7 @@ def downloading_videos(driver, save_directory, key):
     cont = 0
     urls = pd.DataFrame(columns=[ 'ID','Link'])
     csv_path = os.getenv('CSV_PATH')
-    while cont < 20:
+    while cont < 60:
         try:
             likes = WebDriverWait(driver, 10).until(EC.presence_of_element_located((AppiumBy.XPATH, "//android.view.ViewGroup[contains(@content-desc, 'Like number is')]")))
             likes.click()
@@ -121,9 +127,13 @@ def downloading_videos(driver, save_directory, key):
             del share_button
             copied_link = WebDriverWait(driver, 10).until(EC.presence_of_element_located((AppiumBy.XPATH, '//android.widget.TextView[@resource-id="com.instagram.android:id/label" and @text="Copy link"]'))).click()
             link = driver.get_clipboard_text()
-            if not is_link_in_csv(link, csv_path + '/' + key + '.csv'):
+            if is_link_in_csv(link, csv_path + '/' + key + '.csv'):
+                del copied_link
+                driver.swipe(500, 1500, 500, 500, 1000)
+                continue 
+            else:
                 urls.loc[cont] = [cont, link]
-                urls.to_csv(csv_path + '/' + key + '.csv', index=False)
+                urls.to_csv(csv_path + '/' + key + '.csv', mode='a', index=False, header=False)
                 del copied_link
                 ydl_opts = {
                     'format': 'bestaudio/best',
@@ -141,14 +151,11 @@ def downloading_videos(driver, save_directory, key):
                 except youtube_dl.utils.DownloadError:
                     urls = urls.drop(cont)
                     urls = urls.reset_index(drop=True)
-                    urls.to_csv(csv_path + '/' + key + '.csv', index=False)
-                
-        
-        if not is_link_in_csv(link, csv_path + '/' + key + '.csv'):
-            videos += 1
+                    urls.to_csv(csv_path + '/' + key + '.csv', mode='a', index=False, header=False)
+        videos += 1
         driver.swipe(500, 1500, 500, 500, 1000)
 
-    print(f"Total de vídeos: {videos}"
+    print(f"Total de vídeos analisados: {videos}"
         f"Total de vídeos com mais de 100k views: {cont}")
 
 
@@ -164,6 +171,7 @@ def main():
     driver = config()
     time.sleep(5)
     openInstagramApp(driver)
+    first = True
     #login(driver)
     if os.path.exists('Videos') == False:
         os.mkdir('Videos')
@@ -172,13 +180,14 @@ def main():
         save_directory = os.getenv('SAVE_DIRECTORY')
     for key, value in hashtags_list.items():
         for hashtag in value:
-            searching(driver, hashtag)
+            searching(driver, hashtag, first)
             if os.path.exists(save_directory + '/' + key) == False:
                 os.mkdir(save_directory + '/' + key)
                 save_directory = save_directory + '/' + key
             else:
                 save_directory = save_directory + '/' + key
             downloading_videos(driver, save_directory, key)
+            first = False
 
 if __name__ == '__main__':
     main()
