@@ -88,7 +88,9 @@ def searching(driver, text, first):
         driver.tap([(x, y)])
         del keep_searching_button
     except TimeoutException:
-        pass
+        first_hashtag = WebDriverWait(driver, 10).until(EC.presence_of_element_located((AppiumBy.XPATH, '//android.widget.FrameLayout[@resource-id="com.instagram.android:id/row_hashtag_container"][1]')))
+        first_hashtag.click()
+        del first_hashtag
     
     find_reels = WebDriverWait(driver, 10).until(EC.presence_of_element_located((AppiumBy.XPATH, '(//android.widget.ImageView[@resource-id="com.instagram.android:id/redesign_icon_image"])[1]')))
     find_reels.click()
@@ -100,6 +102,11 @@ def downloading_videos(driver, save_directory, key):
     cont = 0
     urls = pd.DataFrame(columns=[ 'ID','Link'])
     csv_path = os.getenv('CSV_PATH')
+    
+    existing_links = set()
+    if os.path.exists(csv_path + '/' + key + '.csv'):
+        df = pd.read_csv(csv_path + '/' + key + '.csv')
+        existing_links.update(df['Link'])
     while cont < 60:
         try:
             likes = WebDriverWait(driver, 10).until(EC.presence_of_element_located((AppiumBy.XPATH, "//android.view.ViewGroup[contains(@content-desc, 'Like number is')]")))
@@ -127,13 +134,18 @@ def downloading_videos(driver, save_directory, key):
             del share_button
             copied_link = WebDriverWait(driver, 10).until(EC.presence_of_element_located((AppiumBy.XPATH, '//android.widget.TextView[@resource-id="com.instagram.android:id/label" and @text="Copy link"]'))).click()
             link = driver.get_clipboard_text()
-            if is_link_in_csv(link, csv_path + '/' + key + '.csv'):
+            if link in existing_links:
                 del copied_link
                 driver.swipe(500, 1500, 500, 500, 1000)
-                continue 
+                continue
+            # if is_link_in_csv(link, csv_path + '/' + key + '.csv'):
+            #     del copied_link
+            #     driver.swipe(500, 1500, 500, 500, 1000)
+            #     continue 
             else:
                 urls.loc[cont] = [cont, link]
-                urls.to_csv(csv_path + '/' + key + '.csv', mode='a', index=False, header=False)
+                urls.to_csv(csv_path + '/' + key + '.csv', index=False, header=False)
+                existing_links.add(link)
                 del copied_link
                 ydl_opts = {
                     'format': 'bestaudio/best',
@@ -151,7 +163,7 @@ def downloading_videos(driver, save_directory, key):
                 except youtube_dl.utils.DownloadError:
                     urls = urls.drop(cont)
                     urls = urls.reset_index(drop=True)
-                    urls.to_csv(csv_path + '/' + key + '.csv', mode='a', index=False, header=False)
+                    urls.to_csv(csv_path + '/' + key + '.csv', index=False, header=False)
         videos += 1
         driver.swipe(500, 1500, 500, 500, 1000)
 
