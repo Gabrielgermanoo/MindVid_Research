@@ -28,22 +28,23 @@ def audioTranscription(file):
 
 def initRecognizer(key):
     cont = 0
-    df = pd.DataFrame(columns=['ID', 'Transcription', 'tag'])
+    df = pd.DataFrame(columns=['ID', 'Transcription', 'tag', 'Link'])
+    links = pd.read_csv(f'./CSV/{key}.csv')
     for dirpath, dirname, filenames in os.walk(f'./Videos/{key}'):
         for filename in filenames:
             if filename.endswith('.wav'):
                 wav_file_name = os.path.join(dirpath, filename)
                 transcription = audioTranscription(wav_file_name)
                 if transcription is not False:
-                    df = pd.concat([df, pd.DataFrame({'ID': [cont], 'Transcription': [transcription], 'tag': [key]})])
+                    df = pd.concat([df, pd.DataFrame({'ID': [cont], 'Transcription': [transcription], 'tag': [key], 'Link': [links['Link'][cont]]})])
                     cont += 1
-    df = df.to_csv(f'./Videos/{key}_audio_transcriptions.csv', index=False)
+    df = df.to_csv(f'./CSV/{key}_audio_transcriptions.csv', index=False)
 
 def main():
     hashtags_list = {
-        "ansiedade": ["#ansiedade", "#transtornodeansiedade"],
-        "depressao": ["#depressao", "#transtornodepressivo"],
-        "TDAH": ["#TDAH", "#transtornodedeficitdeatencaohiperatividade"],
+        # "ansiedade": ["#ansiedade", "#transtornodeansiedade"],
+        # "depressao": ["#depressao", "#transtornodepressivo"],
+        # "TDAH": ["#TDAH", "#transtornodedeficitdeatencaohiperatividade"],
         "TEA": ["#TEA", "autismo", "#transtornodoespectroautista"],
     }
     for key, value in hashtags_list.items():

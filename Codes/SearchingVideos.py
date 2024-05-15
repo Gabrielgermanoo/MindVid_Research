@@ -80,7 +80,7 @@ def searching(driver, text, first):
         search_button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((AppiumBy.XPATH, '//android.widget.Button[@resource-id="com.instagram.android:id/echo_text"]')))
         search_button.click()
         del search_button
-        keep_searching_button = WebDriverWait(driver, 10).until(EC.presence_of_element_located((AppiumBy.ID, "com.instagram.android:id/see_results_footer")))
+        keep_searching_button = WebDriverWait(driver, 6).until(EC.presence_of_element_located((AppiumBy.ID, "com.instagram.android:id/see_results_footer")))
         location = keep_searching_button.location
         size = keep_searching_button.size
         x = location['x'] + size['width'] - 1
@@ -102,11 +102,14 @@ def downloading_videos(driver, save_directory, key):
     cont = 0
     urls = pd.DataFrame(columns=[ 'ID','Link'])
     csv_path = os.getenv('CSV_PATH')
-    
+    csv_path += '/' + key
+    print(csv_path)
     existing_links = set()
-    if os.path.exists(csv_path + '/' + key + '.csv'):
-        df = pd.read_csv(csv_path + '/' + key + '.csv')
-        existing_links.update(df['Link'])
+    if csv_path is not None:
+        full_path = csv_path + '/' + key + '.csv' 
+        if os.path.exists(full_path):
+            df = pd.read_csv(full_path)
+            existing_links.update(df['Link'])
     while cont < 60:
         try:
             likes = WebDriverWait(driver, 10).until(EC.presence_of_element_located((AppiumBy.XPATH, "//android.view.ViewGroup[contains(@content-desc, 'Like number is')]")))
@@ -167,6 +170,8 @@ def downloading_videos(driver, save_directory, key):
         videos += 1
         driver.swipe(500, 1500, 500, 500, 1000)
 
+    df_cp = pd.concat([df, existing_links], ignore_index=True)
+    df_cp.to_csv(full_path, index=False, header=False)
     print(f"Total de vídeos analisados: {videos}"
         f"Total de vídeos com mais de 100k views: {cont}")
 
@@ -185,20 +190,16 @@ def main():
     openInstagramApp(driver)
     first = True
     #login(driver)
-    if os.path.exists('Videos') == False:
+    if not os.path.exists('Videos'):
         os.mkdir('Videos')
-        save_directory = os.getenv('SAVE_DIRECTORY')
-    else:
-        save_directory = os.getenv('SAVE_DIRECTORY')
+    save_directory = os.getenv('SAVE_DIRECTORY')
     for key, value in hashtags_list.items():
         for hashtag in value:
             searching(driver, hashtag, first)
-            if os.path.exists(save_directory + '/' + key) == False:
-                os.mkdir(save_directory + '/' + key)
-                save_directory = save_directory + '/' + key
-            else:
-                save_directory = save_directory + '/' + key
-            downloading_videos(driver, save_directory, key)
+            subfolder_path = os.path.join(save_directory, key)
+            if not os.path.exists(subfolder_path):
+                os.mkdir(subfolder_path)
+            downloading_videos(driver, subfolder_path, key)
             first = False
 
 if __name__ == '__main__':
