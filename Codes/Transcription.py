@@ -29,15 +29,15 @@ def audioTranscription(file):
 def initRecognizer(key):
     cont = 0
     df = pd.DataFrame(columns=['ID', 'Transcription', 'tag', 'Link'])
-    links = pd.read_csv(f'./CSV/{key}.csv')
-    for dirpath, dirname, filenames in os.walk(f'./Videos/{key}'):
-        for filename in filenames:
-            if filename.endswith('.wav'):
-                wav_file_name = os.path.join(dirpath, filename)
-                transcription = audioTranscription(wav_file_name)
-                if transcription is not False:
-                    df = pd.concat([df, pd.DataFrame({'ID': [cont], 'Transcription': [transcription], 'tag': [key], 'Link': [links['Link'][cont]]})])
-                    cont += 1
+    links = pd.read_csv(f'./CSV/{key}/{key}.csv')['Link']
+    for cont, link in enumerate(links):
+        video_id = link.split('/')[4]
+        filename = f'{cont}_{video_id}.wav'
+        wav_file_name = os.path.join(f'./Videos/{key}', filename)
+        if os.path.exists(wav_file_name):
+            transcription = audioTranscription(wav_file_name)
+            if transcription is not False:
+                df = pd.concat([df, pd.DataFrame({'ID': [cont], 'Transcription': [transcription], 'tag': [key], 'Link': [link]})])
     df = df.to_csv(f'./CSV/{key}_audio_transcriptions.csv', index=False)
 
 def main():
