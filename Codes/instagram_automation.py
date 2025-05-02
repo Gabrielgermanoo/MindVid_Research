@@ -9,6 +9,9 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 import yt_dlp as youtube_dl
+import threading
+
+csv_lock = threading.Lock()
 
 
 class InstagramAutomation:
@@ -26,6 +29,7 @@ class InstagramAutomation:
             "language": "en",
             "locale": "US",
             "noReset": True,
+            "adbExecTimeout": 60000,
         }
         appium_server_url = "http://localhost:4723"
         capabilities_options = UiAutomator2Options().load_capabilities(capabilities)
@@ -103,19 +107,50 @@ class InstagramAutomation:
 
         try:
             keep_searching_button = WebDriverWait(self.driver, 6).until(
-                EC.presence_of_element_located((AppiumBy.ANDROID_UIAUTOMATOR, 'new UiSelector().resourceId("com.instagram.android:id/see_results_footer")')))
-            self.driver.tap([(keep_searching_button.location['x'] + keep_searching_button.size['width'] - 1,
-                              keep_searching_button.location['y'] + keep_searching_button.size['height'] - 1)])
+                EC.presence_of_element_located(
+                    (
+                        AppiumBy.ANDROID_UIAUTOMATOR,
+                        'new UiSelector().resourceId("com.instagram.android:id/see_results_footer")',
+                    )
+                )
+            )
+            self.driver.tap(
+                [
+                    (
+                        keep_searching_button.location["x"]
+                        + keep_searching_button.size["width"]
+                        - 1,
+                        keep_searching_button.location["y"]
+                        + keep_searching_button.size["height"]
+                        - 1,
+                    )
+                ]
+            )
             WebDriverWait(self.driver, 10).until(
-                EC.presence_of_element_located((AppiumBy.ANDROID_UIAUTOMATOR, 'new UiSelector().resourceId("com.instagram.android:id/layout_container").instance(0)'))).click()
+                EC.presence_of_element_located(
+                    (
+                        AppiumBy.ANDROID_UIAUTOMATOR,
+                        'new UiSelector().resourceId("com.instagram.android:id/layout_container").instance(0)',
+                    )
+                )
+            ).click()
         except TimeoutException:
             self.driver.press_keycode(66)
             WebDriverWait(self.driver, 10).until(
-                EC.presence_of_element_located((AppiumBy.ANDROID_UIAUTOMATOR, 'new UiSelector().resourceId("com.instagram.android:id/layout_container").instance(0)'))).click()
-            
+                EC.presence_of_element_located(
+                    (
+                        AppiumBy.ANDROID_UIAUTOMATOR,
+                        'new UiSelector().resourceId("com.instagram.android:id/layout_container").instance(0)',
+                    )
+                )
+            ).click()
+
     def download_videos(self, save_directory, key):
-        csv_path = os.getenv('CSV_PATH')
-        full_path = os.path.join(csv_path, key + '.csv')
+        csv_path = os.getenv("CSV_PATH")
+        key_folder = os.path.join(csv_path, key)
+        os.makedirs(key_folder, exist_ok=True)
+
+        full_path = os.path.join(key_folder, key + ".csv")
         existing_links = set()
         last_id = -1
 
@@ -129,7 +164,7 @@ class InstagramAutomation:
         videos = 0
         cont = 0
 
-        while cont < 140:
+        while cont < 100:
             try:
                 likes_button = WebDriverWait(self.driver, 10).until(
                     EC.presence_of_element_located(
@@ -157,10 +192,18 @@ class InstagramAutomation:
                 self.driver.back()
 
             if num_views > 100000:
-                self._handle_video_download(
+                success = self._handle_video_download(
                     existing_links, urls, last_id, save_directory, key
                 )
-                cont += 1
+                if success:
+                    last_id += 1
+
+                    cont += 1
+
+                    print(
+                        f"Vídeo {cont} com mais de 100k views: {num_views} views - last_id: {last_id}"
+                    )
+                    
                 self.driver.back()
             videos += 1
             self._swipe_to_next_video()
@@ -180,22 +223,26 @@ class InstagramAutomation:
         )
         share_button.click()
 
-        copied_link = WebDriverWait(self.driver, 10).until(
+        copy_link_option = WebDriverWait(self.driver, 10).until(
             EC.presence_of_element_located(
-                (
-                    AppiumBy.XPATH,
-                    '//android.widget.TextView[@resource-id="com.instagram.android:id/label" and @text="Copy link"]',
-                )
+                (AppiumBy.ANDROID_UIAUTOMATOR, 'new UiSelector().text("Copy link")')
             )
         )
+        copy_link_option.click()
+
+        time.sleep(2)
+
         link = self.driver.get_clipboard_text()
 
         if link in existing_links:
+            print(f"Link já existe: {link}")
             self.swipe_up()
+            return False
         else:
             last_id += 1
             urls.loc[len(urls)] = [last_id, link]
             self._download_video(link, save_directory, last_id)
+            return True
 
     def _download_video(self, link, save_directory, last_id):
         ydl_opts = {
@@ -208,6 +255,10 @@ class InstagramAutomation:
                 }
             ],
             "outtmpl": os.path.join(save_directory, f"{last_id}_%(id)s.%(ext)s"),
+            "cookiesfrombrowser": None,
+            "headers": {
+                "User-Agent": "Instagram 219.0.0.12.117 Android",
+            },
         }
         try:
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
@@ -227,13 +278,22 @@ class InstagramAutomation:
         time.sleep(3)
 
     def _save_csv(self, csv_file_path, urls, existing_links):
-        combined_df = pd.concat(
-            [pd.DataFrame(list(existing_links), columns=["Link"]), urls],
-            ignore_index=True,
-        )
-        combined_df.drop_duplicates(subset=["Link"], inplace=True)
-        combined_df["ID"] = combined_df["ID"].astype(int)
-        combined_df.to_csv(csv_file_path, index=False, header=True)
+        with csv_lock:
+            combined_df = pd.DataFrame()
+
+            if os.path.exists(csv_file_path):
+                existing_df = pd.read_csv(csv_file_path)
+                combined_df = pd.concat([existing_df, urls], ignore_index=True)
+            else:
+                combined_df = urls
+
+            combined_df.drop_duplicates(subset=["Link"], inplace=True)
+            if not combined_df.empty and "ID" in combined_df.columns:
+                combined_df["ID"] = combined_df["ID"].astype(int)
+
+            combined_df = combined_df[["ID", "Link"]]
+
+            combined_df.to_csv(csv_file_path, index=False, header=True)
 
 
 def main():
@@ -243,7 +303,7 @@ def main():
     time.sleep(5)
 
     hashtags_list = {
-        "ansiedade": ["#ansiedade", "#transtornodeansiedade"],
+        "ansiedade": ["#ansiedade"],
         # "depressao": ["#depressao", "#transtornodepressivo"],
         # "TDAH": ["#TDAH", "#transtornodedeficitdeatencaohiperatividade"],
         # "TEA": ["#TEA", "autismo", "#transtornodoespectroautista"],
