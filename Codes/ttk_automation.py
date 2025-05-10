@@ -6,6 +6,7 @@ from appium import webdriver
 from appium.options.common.base import AppiumOptions
 from appium.webdriver.common.appiumby import AppiumBy
 import yt_dlp as youtube_dl
+from dotenv import load_dotenv
 import  os
 import time
 import pandas as pd
@@ -19,6 +20,7 @@ from selenium.webdriver.common.actions.pointer_input import PointerInput
 class TikTokAutomation:
     def __init__(self):
         self.driver = self._initialize()
+        load_dotenv()
         
    
     def _initialize(self):
@@ -28,8 +30,8 @@ class TikTokAutomation:
         options.load_capabilities({
         "appium:automationName": "UiAutomator2",
         "appium:platformName": "Android",
-        "appium:platformVersion": "14",
-        "appium:deviceName": "emulator-5554",
+        "appium:platformVersion": "10",
+        "appium:deviceName": "moto e(7) power",
         "appium:newCommandTimeout": 3600,
         "appium:connectHardwareKeyboard": True
     })
@@ -47,20 +49,25 @@ class TikTokAutomation:
     
     def getLink(self):
         print('getLink')
-        el1 = self.driver.find_element(by=AppiumBy.ID, value="com.zhiliaoapp.musically:id/or6")
+        el1 = self.driver.find_element(by=AppiumBy.ID, value="com.zhiliaoapp.musically:id/pk_")
         el1.click()
-        el2 = self.driver.find_element(by=AppiumBy.ACCESSIBILITY_ID, value="Copy link")
+        time.sleep(2)
+        print("copy link")
+        el2 = self.driver.find_element(by=AppiumBy.ANDROID_UIAUTOMATOR, value="new UiSelector().resourceId(\"com.zhiliaoapp.musically:id/pk2\").instance(0)")
         el2.click()
+        print("get clipboard")
         link=self.driver.get_clipboard_text()
         return link
     
     def checkViews(self):
-        print('check views')
-        el1 = self.driver.find_element(by=AppiumBy.ID, value="com.zhiliaoapp.musically:id/dt6")
+        print('check likes')
+        el1 = self.driver.find_element(by=AppiumBy.ID, value="com.zhiliaoapp.musically:id/e2q")
         print(el1.text)
         if 'K' in el1.text:
             return True
         if 'M' in el1.text:
+            return True
+        if 'mi' in el1.text:
             return True
         return False
 
@@ -72,7 +79,7 @@ class TikTokAutomation:
 
         if os.path.exists(full_path):
             df = pd.read_csv(full_path)
-            existing_links.update(df['Link'])
+            existing_links.update(df['link'])
 
         cont = 0
         print(existing_links)
@@ -105,29 +112,36 @@ class TikTokAutomation:
         print('search_hashtag')
 
         if isFirst:
+         
             print('first')
-            go_to_search_button= self.driver.find_element(by=AppiumBy.ID, value="com.zhiliaoapp.musically:id/gll")
+            go_to_search_button= self.driver.find_element(by=AppiumBy.ANDROID_UIAUTOMATOR, value="new UiSelector().resourceId(\"com.zhiliaoapp.musically:id/h0i\").instance(1)")
             go_to_search_button.click()
 
         else:
             print('second')
-            go_to_search_button = self.driver.find_element(by=AppiumBy.ID, value="com.zhiliaoapp.musically:id/jd6")
+            go_to_search_button = self.driver.find_element(by=AppiumBy.ID, value="com.zhiliaoapp.musically:id/tjy")
             go_to_search_button.click()
 
         print('type')
 
         time.sleep(2)
-        search_field= self.driver.find_element(by=AppiumBy.ID, value="com.zhiliaoapp.musically:id/eu9")
+        search_field= self.driver.find_element(by=AppiumBy.ID, value="com.zhiliaoapp.musically:id/f5t")
         search_field.send_keys(text)
 
 
         print('search')
-        search_button = self.driver.find_element(by=AppiumBy.ID, value="com.zhiliaoapp.musically:id/skb")
+        search_button = self.driver.find_element(by=AppiumBy.ID, value="com.zhiliaoapp.musically:id/tk1")
         search_button.click()
         time.sleep(2)
+        actions = ActionChains(self.driver)
+        actions.w3c_actions = ActionBuilder(self.driver, mouse=PointerInput(interaction.POINTER_TOUCH, "touch"))
+        actions.w3c_actions.pointer_action.move_to_location(199, 584)
+        actions.w3c_actions.pointer_action.pointer_down()
+        actions.w3c_actions.pointer_action.pause(0.1)
+        actions.w3c_actions.pointer_action.release()
+        actions.perform()
         
-        first_video = self.driver.find_element(by=AppiumBy.ANDROID_UIAUTOMATOR, value="new UiSelector().resourceId(\"com.zhiliaoapp.musically:id/qrh\").instance(0)")
-        first_video.click()
+        
 
 
 
@@ -135,6 +149,7 @@ def _download_video(link,key,path):
     print(link)
     ydl_opts = {
         'format': 'bestaudio/best',
+        'cookiesfrombrowser': ('chrome',),
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'wav',
@@ -164,17 +179,17 @@ def main():
     hashtags_list = {
         "ansiedade": ["#ansiedade",],
         "depressao": ["#depressao"],
-        # "TDAH": ["#TDAH", "#transtornodedeficitdeatencaohiperatividade"],
-        # "TEA": ["#TEA", "autismo", "#transtornodoespectroautista"],
+        "TDAH": ["#TDAH", "#transtornodedeficitdeatencaohiperatividade"],
+        "TEA": ["#TEA", "autismo", "#transtornodoespectroautista"],
     }
-    save_directory = '/Users/victorferro/Documents/mind_research/'
+    save_directory = os.getenv("save_directory")
     for key, value in hashtags_list.items():
         subfolder_path = os.path.join(save_directory, key)
         os.makedirs(subfolder_path, exist_ok=True)
         for hashtag in value:
             tikTokBot.searchHastag(hashtag,isFirst=isFirst)
             isFirst=False
-            tikTokBot.DownLoadVideos(key=key,videoCount=10,path=save_directory)
+            tikTokBot.DownLoadVideos(key=key,videoCount=1,path=save_directory)
 
     tikTokBot.driver.quit()
 
