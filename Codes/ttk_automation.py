@@ -101,11 +101,6 @@ class TikTokAutomation:
                             cont+=1
             self.scrollDown()
             time.sleep(2)
-         
-
-        
-        
-
     
     def searchHastag(self,text,isFirst):
         time.sleep(2)
