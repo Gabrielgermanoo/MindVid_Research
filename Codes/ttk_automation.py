@@ -26,12 +26,14 @@ class TikTokAutomation:
     def _initialize(self):
         print('initialize')
         pd.options.display.max_rows = 9999
+        deviceName=os.getenv("device_name")
+        platformVersion=os.getenv("platform_version")
         options = AppiumOptions()
         options.load_capabilities({
         "appium:automationName": "UiAutomator2",
         "appium:platformName": "Android",
-        "appium:platformVersion": "10",
-        "appium:deviceName": "moto e(7) power",
+        "appium:platformVersion": platformVersion,
+        "appium:deviceName": deviceName,
         "appium:newCommandTimeout": 3600,
         "appium:connectHardwareKeyboard": True
     })
@@ -49,11 +51,11 @@ class TikTokAutomation:
     
     def getLink(self):
         print('getLink')
-        el1 = self.driver.find_element(by=AppiumBy.ID, value="com.zhiliaoapp.musically:id/pk_")
+        el1 = self.driver.find_element(by=AppiumBy.ANDROID_UIAUTOMATOR, value="new UiSelector().resourceId(\"com.zhiliaoapp.musically:id/d5w\").instance(5)")
         el1.click()
         time.sleep(2)
         print("copy link")
-        el2 = self.driver.find_element(by=AppiumBy.ANDROID_UIAUTOMATOR, value="new UiSelector().resourceId(\"com.zhiliaoapp.musically:id/pk2\").instance(0)")
+        el2 = self.driver.find_element(by=AppiumBy.ANDROID_UIAUTOMATOR, value="new UiSelector().resourceId(\"com.zhiliaoapp.musically:id/poj\").instance(0)")
         el2.click()
         print("get clipboard")
         link=self.driver.get_clipboard_text()
@@ -61,7 +63,7 @@ class TikTokAutomation:
     
     def checkViews(self):
         print('check likes')
-        el1 = self.driver.find_element(by=AppiumBy.ID, value="com.zhiliaoapp.musically:id/e2q")
+        el1 = self.driver.find_element(by=AppiumBy.ANDROID_UIAUTOMATOR, value="new UiSelector().resourceId(\"com.zhiliaoapp.musically:id/e3p\")")
         print(el1.text)
         if 'K' in el1.text:
             return True
@@ -114,23 +116,23 @@ class TikTokAutomation:
         if isFirst:
          
             print('first')
-            go_to_search_button= self.driver.find_element(by=AppiumBy.ANDROID_UIAUTOMATOR, value="new UiSelector().resourceId(\"com.zhiliaoapp.musically:id/h0i\").instance(1)")
+            go_to_search_button= self.driver.find_element(by=AppiumBy.ANDROID_UIAUTOMATOR, value="new UiSelector().resourceId(\"com.zhiliaoapp.musically:id/h2t\").instance(1)")
             go_to_search_button.click()
 
         else:
             print('second')
-            go_to_search_button = self.driver.find_element(by=AppiumBy.ID, value="com.zhiliaoapp.musically:id/tjy")
+            go_to_search_button = self.driver.find_element(by=AppiumBy.ANDROID_UIAUTOMATOR, value="new UiSelector().resourceId(\"com.zhiliaoapp.musically:id/jya\")")
             go_to_search_button.click()
 
         print('type')
 
         time.sleep(2)
-        search_field= self.driver.find_element(by=AppiumBy.ID, value="com.zhiliaoapp.musically:id/f5t")
+        search_field= self.driver.find_element(by=AppiumBy.ANDROID_UIAUTOMATOR, value="new UiSelector().resourceId(\"com.zhiliaoapp.musically:id/f7r\")")
         search_field.send_keys(text)
 
 
         print('search')
-        search_button = self.driver.find_element(by=AppiumBy.ID, value="com.zhiliaoapp.musically:id/tk1")
+        search_button = self.driver.find_element(by=AppiumBy.ANDROID_UIAUTOMATOR, value="new UiSelector().resourceId(\"com.zhiliaoapp.musically:id/tpn\")")
         search_button.click()
         time.sleep(2)
         actions = ActionChains(self.driver)
@@ -175,10 +177,10 @@ def main():
     # tikTokBot.openTikTok()
 
 
-    isFirst=True
+    isFirst=False
     hashtags_list = {
-        "ansiedade": ["#ansiedade",],
         "depressao": ["#depressao"],
+        "ansiedade": ["#ansiedade",],
         "TDAH": ["#TDAH", "#transtornodedeficitdeatencaohiperatividade"],
         "TEA": ["#TEA", "autismo", "#transtornodoespectroautista"],
     }
