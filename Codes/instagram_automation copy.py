@@ -23,8 +23,8 @@ class InstagramAutomation:
         capabilities = {
             "platformName": "Android",
             "automationName": "uiautomator2",
-            "deviceName": "RXCY20183EH",
-            "udid": "RXCY20183EH",
+            "deviceName": "RXCY201DBTA",
+            "udid": "RXCY201DBTA",
             "appPackage": "com.android.settings",
             "appActivity": ".Settings",
             "language": "en",
@@ -32,7 +32,7 @@ class InstagramAutomation:
             "noReset": True,
             "adbExecTimeout": 60000,
         }
-        appium_server_url = "http://localhost:4723"
+        appium_server_url = "http://localhost:4724"
         capabilities_options = UiAutomator2Options().load_capabilities(capabilities)
 
         return webdriver.Remote(
@@ -175,6 +175,7 @@ class InstagramAutomation:
                         )
                     )
                 )
+                time.sleep(1)
                 likes_button.click()
             except TimeoutException:
                 self.swipe_up()
@@ -283,23 +284,13 @@ class InstagramAutomation:
             combined_df = pd.DataFrame()
 
             if os.path.exists(csv_file_path):
-                try:
-                    existing_df = pd.read_csv(csv_file_path)
-                    if not existing_df.empty:
-                        combined_df = pd.concat([existing_df, urls], ignore_index=True)
-                    else:
-                        combined_df = urls
-                except pd.errors.EmptyDataError:
-                    combined_df = urls
+                existing_df = pd.read_csv(csv_file_path)
+                combined_df = pd.concat([existing_df, urls], ignore_index=True)
             else:
                 combined_df = urls
 
             combined_df.drop_duplicates(subset=["Link"], inplace=True)
-
-            if not combined_df.empty:
-                combined_df = combined_df.sort_values("ID", na_position="first")
-                combined_df["ID"] = range(len(combined_df))
-
+            if not combined_df.empty and "ID" in combined_df.columns:
                 combined_df["ID"] = combined_df["ID"].astype(int)
 
             combined_df = combined_df[["ID", "Link"]]
@@ -318,11 +309,11 @@ def main():
         # "depressao": ["#depressao", "#transtornodepressivo"],
         # "TDAH": ["#TDAH", "#transtornodedeficitdeatencaohiperatividade"],
         # "TEA": ["#TEA", "autismo", "#transtornodoespectroautista"],
-        # "TEPT": ["#transtornodeestressepostraumatico"],
-        # "TBP": ["#bipolar"],
-        # "TOC": ["#TOC", "#transtorno_obsessivo_compulsivo"],
+        # "TOC": ["#TOC"], (ok)
+        # "TEPT": ["#PTSD"], (ok)
+        # "TBP": ["#TBP"], (ok)
         "suicidio": ["#prevencaosuicidio"],
-        # "borderline": ["#borderline"], #(ok)
+        # "borderline": ["#borderline", "#transtornodepersonalidadeborderline"], (ok)
     }
 
     save_directory = os.getenv("SAVE_DIRECTORY")

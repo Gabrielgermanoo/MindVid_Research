@@ -1,6 +1,7 @@
 import os
 import time
 import pandas as pd
+import threading
 from dotenv import load_dotenv
 from appium import webdriver
 from appium.webdriver.common.appiumby import AppiumBy
@@ -9,13 +10,15 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 import yt_dlp as youtube_dl
-import threading
 
+# Global lock for CSV file access
 csv_lock = threading.Lock()
 
 
 class InstagramAutomation:
-    def __init__(self):
+    def __init__(self, device_id="emulator-5554", appium_port=4723):
+        self.device_id = device_id
+        self.appium_port = appium_port
         self.driver = self._config_driver()
 
     def _config_driver(self):
@@ -23,16 +26,16 @@ class InstagramAutomation:
         capabilities = {
             "platformName": "Android",
             "automationName": "uiautomator2",
-            "deviceName": "RXCY20183EH",
-            "udid": "RXCY20183EH",
+            "deviceName": self.device_id,  # Use device_id parameter
+            "udid": self.device_id,
             "appPackage": "com.android.settings",
             "appActivity": ".Settings",
             "language": "en",
             "locale": "US",
             "noReset": True,
-            "adbExecTimeout": 60000,
+            "adbExecTimeout": 60000,  # Increased timeout
         }
-        appium_server_url = "http://localhost:4723"
+        appium_server_url = f"http://localhost:{self.appium_port}"  # Use port parameter
         capabilities_options = UiAutomator2Options().load_capabilities(capabilities)
 
         return webdriver.Remote(
@@ -53,6 +56,7 @@ class InstagramAutomation:
 
     def open_instagram_app(self):
         self.find_instagram_app().click()
+        print(f"[Device {self.device_id}] Instagram app opened")
 
     def login(self):
         username = os.getenv("INSTAGRAM_USERNAME")
@@ -77,10 +81,10 @@ class InstagramAutomation:
             AppiumBy.XPATH,
             "//android.widget.Button[@content-desc='Log in']/android.view.ViewGroup",
         ).click()
+        print(f"[Device {self.device_id}] Logged in as {username}")
 
     def is_link_in_csv(self, link, csv_file):
         df = pd.read_csv(csv_file)
-
         return df["Link"].str.contains(link).any()
 
     def search_hashtag(self, text, first):
@@ -88,12 +92,12 @@ class InstagramAutomation:
         if first:
             search_button = self.driver.find_element(
                 AppiumBy.ANDROID_UIAUTOMATOR,
-                'new UiSelector().resourceId("com.instagram.android:id/search_tab")',
+                'new UiSelector().resourceId("com.instagram.android:id/tab_icon").instance(2)',
             )
         else:
             search_button = self.driver.find_element(
                 AppiumBy.ANDROID_UIAUTOMATOR,
-                'new UiSelector().resourceId("com.instagram.android:id/tab_icon").instance(1)',
+                'new UiSelector().resourceId("com.instagram.android:id/search_tab")',
             )
         search_button.click()
 
@@ -136,7 +140,7 @@ class InstagramAutomation:
                 )
             ).click()
         except TimeoutException:
-            # self.driver.press_keycode(66)
+            self.driver.press_keycode(66)
             WebDriverWait(self.driver, 10).until(
                 EC.presence_of_element_located(
                     (
@@ -146,24 +150,46 @@ class InstagramAutomation:
                 )
             ).click()
 
+        print(f"[Device {self.device_id}] Searching hashtag: {text}")
+
+    def _get_clipboard_with_retry(self, max_attempts=3, delay=2):
+        """Get clipboard text with retry mechanism"""
+        for attempt in range(max_attempts):
+            try:
+                return self.driver.get_clipboard_text()
+            except Exception as e:
+                print(
+                    f"[Device {self.device_id}] Attempt {attempt + 1}: Failed to get clipboard text: {str(e)}"
+                )
+                if attempt < max_attempts - 1:
+                    time.sleep(delay)
+                else:
+                    print(
+                        f"[Device {self.device_id}] All attempts to get clipboard failed"
+                    )
+                    return ""
+
     def download_videos(self, save_directory, key):
         csv_path = os.getenv("CSV_PATH")
         key_folder = os.path.join(csv_path, key)
         os.makedirs(key_folder, exist_ok=True)
 
         full_path = os.path.join(key_folder, key + ".csv")
-        existing_links = set()
-        last_id = -1
 
-        if os.path.exists(full_path):
-            df = pd.read_csv(full_path)
-            existing_links.update(df["Link"])
-            if "ID" in df.columns:
-                last_id = df["ID"].max()
+        # Use lock when accessing shared file
+        with csv_lock:
+            existing_links = set()
+            last_id = -1
+
+            if os.path.exists(full_path):
+                df = pd.read_csv(full_path)
+                existing_links.update(df["Link"])
+                if "ID" in df.columns:
+                    last_id = df["ID"].max()
 
         urls = pd.DataFrame(columns=["ID", "Link"])
         videos = 0
-        cont = len(existing_links)
+        cont = 0
 
         while cont < 100:
             try:
@@ -192,58 +218,82 @@ class InstagramAutomation:
             finally:
                 self.driver.back()
 
-            if num_views > 50000:
-                success = self._handle_video_download(
+            if num_views > 100000:
+                # Modified to use current_id instead of modifying last_id directly
+                success, new_id = self._handle_video_download(
                     existing_links, urls, last_id, save_directory, key
                 )
+
                 if success:
-                    last_id += 1
-
+                    last_id = new_id  # Update last_id with the new ID
                     cont += 1
-
                     print(
-                        f"Vídeo {cont} com mais de 100k views: {num_views} views - last_id: {last_id}"
+                        f"[Device {self.device_id}] Vídeo {cont} com mais de 100k views: {num_views} views - last_id: {last_id}"
                     )
 
                 self.driver.back()
+
             videos += 1
-            self._save_csv(full_path, urls, existing_links)
             self._swipe_to_next_video()
 
         self._save_csv(full_path, urls, existing_links)
         print(
-            f"Total de vídeos analisados: {videos}\nTotal de vídeos com mais de 100k views: {cont}"
+            f"[Device {self.device_id}] Total de vídeos analisados: {videos}\nTotal de vídeos com mais de 100k views: {cont}"
         )
 
     def _handle_video_download(
         self, existing_links, urls, last_id, save_directory, key
     ):
-        share_button = WebDriverWait(self.driver, 10).until(
-            EC.presence_of_element_located(
-                (AppiumBy.XPATH, '//android.widget.ImageView[@content-desc="Share"]')
+        try:
+            share_button = WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located(
+                    (
+                        AppiumBy.XPATH,
+                        '//android.widget.ImageView[@content-desc="Share"]',
+                    )
+                )
             )
-        )
-        share_button.click()
+            share_button.click()
 
-        copy_link_option = WebDriverWait(self.driver, 10).until(
-            EC.presence_of_element_located(
-                (AppiumBy.ANDROID_UIAUTOMATOR, 'new UiSelector().text("Copy link")')
+            copy_link_option = WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located(
+                    (AppiumBy.ANDROID_UIAUTOMATOR, 'new UiSelector().text("Copy link")')
+                )
             )
-        )
-        copy_link_option.click()
+            copy_link_option.click()
 
-        time.sleep(2)
+            time.sleep(2)
 
-        link = self.driver.get_clipboard_text()
+            # Use retry mechanism for clipboard
+            link = self._get_clipboard_with_retry()
 
-        if link in existing_links:
-            print(f"Link já existe: {link}")
-            return False
-        else:
-            last_id += 1
-            urls.loc[len(urls)] = [last_id, link]
-            self._download_video(link, save_directory, last_id)
-            return True
+            if not link:  # If link is empty or None
+                return False, last_id
+
+            if link in existing_links:
+                print(f"[Device {self.device_id}] Link já existe: {link}")
+                self.swipe_up()
+                return False, last_id
+            else:
+                new_id = last_id + 1
+                urls.loc[len(urls)] = [new_id, link]
+
+                # Add to existing_links to prevent duplicates within the same session
+                existing_links.add(link)
+
+                download_success = self._download_video(link, save_directory, new_id)
+                if download_success:
+                    return True, new_id
+                else:
+                    # If download fails, remove the entry from dataframe
+                    urls.drop(urls[urls["Link"] == link].index, inplace=True)
+                    return False, last_id
+
+        except Exception as e:
+            print(
+                f"[Device {self.device_id}] Error in _handle_video_download: {str(e)}"
+            )
+            return False, last_id
 
     def _download_video(self, link, save_directory, last_id):
         ydl_opts = {
@@ -264,8 +314,11 @@ class InstagramAutomation:
         try:
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([link])
-        except youtube_dl.utils.DownloadError:
-            print(f"Erro ao baixar o vídeo {link}")
+            print(f"[Device {self.device_id}] Successfully downloaded video: {link}")
+            return True
+        except youtube_dl.utils.DownloadError as e:
+            print(f"[Device {self.device_id}] Error downloading video {link}: {str(e)}")
+            return False
 
     def _swipe_to_next_video(self):
         size = self.driver.get_window_size()
@@ -283,56 +336,110 @@ class InstagramAutomation:
             combined_df = pd.DataFrame()
 
             if os.path.exists(csv_file_path):
-                try:
-                    existing_df = pd.read_csv(csv_file_path)
-                    if not existing_df.empty:
-                        combined_df = pd.concat([existing_df, urls], ignore_index=True)
-                    else:
-                        combined_df = urls
-                except pd.errors.EmptyDataError:
-                    combined_df = urls
+                existing_df = pd.read_csv(csv_file_path)
+                combined_df = pd.concat([existing_df, urls], ignore_index=True)
             else:
                 combined_df = urls
 
             combined_df.drop_duplicates(subset=["Link"], inplace=True)
-
-            if not combined_df.empty:
-                combined_df = combined_df.sort_values("ID", na_position="first")
-                combined_df["ID"] = range(len(combined_df))
-
+            if not combined_df.empty and "ID" in combined_df.columns:
                 combined_df["ID"] = combined_df["ID"].astype(int)
 
             combined_df = combined_df[["ID", "Link"]]
 
             combined_df.to_csv(csv_file_path, index=False, header=True)
+            print(f"[Device {self.device_id}] CSV saved: {csv_file_path}")
+
+
+def process_device(device_id, appium_port, hashtags_to_process):
+    """Process a single device with specific hashtags"""
+    try:
+        instagram_bot = InstagramAutomation(
+            device_id=device_id, appium_port=appium_port
+        )
+        instagram_bot.open_instagram_app()
+        time.sleep(5)
+
+        save_directory = os.getenv("SAVE_DIRECTORY")
+
+        for key, hashtags in hashtags_to_process.items():
+            subfolder_path = os.path.join(save_directory, key)
+            os.makedirs(subfolder_path, exist_ok=True)
+
+            for hashtag in hashtags:
+                instagram_bot.search_hashtag(hashtag, first=True)
+                instagram_bot.download_videos(subfolder_path, key)
+
+        print(f"[Device {device_id}] Process completed")
+    except Exception as e:
+        print(f"[Device {device_id}] Error in process_device: {str(e)}")
+
+
+def distribute_hashtags(devices, hashtags_list):
+    """Distribute hashtags evenly across devices"""
+    device_hashtags = {}
+    device_count = len(devices)
+
+    # Initialize empty dictionaries for each device
+    for device_id, _ in devices:
+        device_hashtags[device_id] = {}
+
+    # Distribute hashtags by round-robin
+    device_index = 0
+    for key, hashtags in hashtags_list.items():
+        # Get current device ID
+        current_device = devices[device_index][0]
+
+        # Assign this hashtag to the current device
+        device_hashtags[current_device][key] = hashtags
+
+        # Move to next device
+        device_index = (device_index + 1) % device_count
+
+    return device_hashtags
+
+
+def run_in_parallel(devices, hashtags_list):
+    """Run automation on multiple devices simultaneously"""
+    # Distribute hashtags among devices
+    device_hashtags = distribute_hashtags(devices, hashtags_list)
+
+    # Create and start threads
+    threads = []
+    for device_id, port in devices:
+        thread = threading.Thread(
+            target=process_device, args=(device_id, port, device_hashtags[device_id])
+        )
+        threads.append(thread)
+        thread.start()
+        print(f"Thread started for device {device_id}")
+
+    # Wait for all threads to complete
+    for thread in threads:
+        thread.join()
 
 
 def main():
-    instagram_bot = InstagramAutomation()
-    instagram_bot.open_instagram_app()
-    # instagram_bot.login()
-    time.sleep(5)
+    # Define devices - can be emulators or physical devices
+    devices = [
+        ("RXCY20183EH", 4723),  # First physical device
+        ("RXCY201DBTA", 4724),  # Second physical device
+        # Second device
+        # Add more devices as needed
+    ]
 
+    # Define hashtags to search
     hashtags_list = {
-        # "ansiedade": ["#ansiedade"],
-        # "depressao": ["#depressao", "#transtornodepressivo"],
-        # "TDAH": ["#TDAH", "#transtornodedeficitdeatencaohiperatividade"],
-        # "TEA": ["#TEA", "autismo", "#transtornodoespectroautista"],
-        # "TEPT": ["#transtornodeestressepostraumatico"],
-        # "TBP": ["#bipolar"],
-        # "TOC": ["#TOC", "#transtorno_obsessivo_compulsivo"],
-        "suicidio": ["#prevencaosuicidio"],
-        # "borderline": ["#borderline"], #(ok)
+        "ansiedade": ["#ansiedade"],
+        "depressao": ["#depressao", "#transtornodepressivo"],
+        "TDAH": ["#TDAH", "#transtornodedeficitdeatencaohiperatividade"],
+        "TEA": ["#TEA", "#autismo", "#transtornodoespectroautista"],
     }
 
-    save_directory = os.getenv("SAVE_DIRECTORY")
+    # Run in parallel
+    run_in_parallel(devices, hashtags_list)
 
-    for key, value in hashtags_list.items():
-        subfolder_path = os.path.join(save_directory, key)
-        os.makedirs(subfolder_path, exist_ok=True)
-        for hashtag in value:
-            instagram_bot.search_hashtag(hashtag, first=True)
-            instagram_bot.download_videos(subfolder_path, key)
+    print("All processes completed")
 
 
 if __name__ == "__main__":
