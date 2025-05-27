@@ -23,8 +23,8 @@ class InstagramAutomation:
         capabilities = {
             "platformName": "Android",
             "automationName": "uiautomator2",
-            "deviceName": "RXCY20183EH",
-            "udid": "RXCY20183EH",
+            "deviceName": "RXCY20183JY",
+            "udid": "RXCY20183JY",
             "appPackage": "com.android.settings",
             "appActivity": ".Settings",
             "language": "en",
@@ -32,7 +32,7 @@ class InstagramAutomation:
             "noReset": True,
             "adbExecTimeout": 60000,
         }
-        appium_server_url = "http://localhost:4723"
+        appium_server_url = "http://localhost:4725"
         capabilities_options = UiAutomator2Options().load_capabilities(capabilities)
 
         return webdriver.Remote(
@@ -164,6 +164,9 @@ class InstagramAutomation:
         urls = pd.DataFrame(columns=["ID", "Link"])
         videos = 0
         cont = len(existing_links)
+        print(cont)
+        if cont is None:
+            cont = 0
 
         while cont < 100:
             try:
@@ -175,6 +178,7 @@ class InstagramAutomation:
                         )
                     )
                 )
+                time.sleep(1)
                 likes_button.click()
             except TimeoutException:
                 self.swipe_up()
@@ -314,15 +318,15 @@ def main():
     time.sleep(5)
 
     hashtags_list = {
-        # "ansiedade": ["#ansiedade"],
-        # "depressao": ["#depressao", "#transtornodepressivo"],
-        # "TDAH": ["#TDAH", "#transtornodedeficitdeatencaohiperatividade"],
-        # "TEA": ["#TEA", "autismo", "#transtornodoespectroautista"],
-        # "TEPT": ["#transtornodeestressepostraumatico"],
-        # "TBP": ["#bipolar"],
-        # "TOC": ["#TOC", "#transtorno_obsessivo_compulsivo"],
+        # "ansiedade": ["#ansiedade"], (ok)
+        # "depressao": ["#depressao", "#transtornodepressivo"], (ok)
+        # "TDAH": ["#TDAH", "#transtornodedeficitdeatencaohiperatividade"], (ok)
+        # "TEA": ["#TEA", "autismo", "#transtornodoespectroautista"], (ok)
+        # "TOC": ["#transtornoobsessivocompulsivo"], (ok)
+        # "TEPT": ["#estressepostraumatico"],
+        # "TBP": ["#bipolaridade"], (ok)
         "suicidio": ["#prevencaosuicidio"],
-        # "borderline": ["#borderline"], #(ok)
+        # "borderline": ["#borderline", "#transtornodepersonalidadeborderline"], (ok)
     }
 
     save_directory = os.getenv("SAVE_DIRECTORY")
