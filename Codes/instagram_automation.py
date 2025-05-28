@@ -23,8 +23,8 @@ class InstagramAutomation:
         capabilities = {
             "platformName": "Android",
             "automationName": "uiautomator2",
-            "deviceName": "RXCY20183EH",
-            "udid": "RXCY20183EH",
+            "deviceName": "RXCY20183EH", # Use the adb device command to find your device name
+            "udid": "RXCY20183EH", # Use the adb device command to find your device name
             "appPackage": "com.android.settings",
             "appActivity": ".Settings",
             "language": "en",
@@ -32,7 +32,7 @@ class InstagramAutomation:
             "noReset": True,
             "adbExecTimeout": 60000,
         }
-        appium_server_url = "http://localhost:4723"
+        appium_server_url = "http://localhost:4723" # Here the port should match the one used by your Appium server
         capabilities_options = UiAutomator2Options().load_capabilities(capabilities)
 
         return webdriver.Remote(
@@ -314,15 +314,15 @@ def main():
     time.sleep(5)
 
     hashtags_list = {
-        # "ansiedade": ["#ansiedade"],
-        # "depressao": ["#depressao", "#transtornodepressivo"],
-        # "TDAH": ["#TDAH", "#transtornodedeficitdeatencaohiperatividade"],
-        # "TEA": ["#TEA", "autismo", "#transtornodoespectroautista"],
-        # "TEPT": ["#transtornodeestressepostraumatico"],
-        # "TBP": ["#bipolar"],
-        # "TOC": ["#TOC", "#transtorno_obsessivo_compulsivo"],
+        "ansiedade": ["#ansiedade"],
+        "depressao": ["#depressao", "#transtornodepressivo"],
+        "TDAH": ["#TDAH", "#transtornodedeficitdeatencaohiperatividade"],
+        "TEA": ["#transtornodoespectroautista"],
+        "TEPT": ["#transtornodeestressepostraumatico"],
+        "TBP": ["#bipolar"],
+        "TOC": ["#TOC", "#transtorno_obsessivo_compulsivo"],
         "suicidio": ["#prevencaosuicidio"],
-        # "borderline": ["#borderline"], #(ok)
+        "borderline": ["#borderline"],
     }
 
     save_directory = os.getenv("SAVE_DIRECTORY")
