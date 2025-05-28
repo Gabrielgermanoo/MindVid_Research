@@ -161,7 +161,7 @@ class InstagramAutomation:
             if "ID" in df.columns:
                 last_id = df["ID"].max()
 
-        urls = pd.DataFrame(columns=["ID", "Link"])
+        urls = pd.DataFrame(columns=["ID", "Link", "Views"])
         videos = 0
         cont = len(existing_links)
 
@@ -192,9 +192,9 @@ class InstagramAutomation:
             finally:
                 self.driver.back()
 
-            if num_views > 50000:
+            if num_views > 100000:
                 success = self._handle_video_download(
-                    existing_links, urls, last_id, save_directory, key
+                    existing_links, urls, last_id, save_directory, key, num_views
                 )
                 if success:
                     last_id += 1
@@ -216,7 +216,7 @@ class InstagramAutomation:
         )
 
     def _handle_video_download(
-        self, existing_links, urls, last_id, save_directory, key
+        self, existing_links, urls, last_id, save_directory, key, num_views
     ):
         share_button = WebDriverWait(self.driver, 10).until(
             EC.presence_of_element_located(
@@ -241,7 +241,7 @@ class InstagramAutomation:
             return False
         else:
             last_id += 1
-            urls.loc[len(urls)] = [last_id, link]
+            urls.loc[len(urls)] = [last_id, link, num_views]
             self._download_video(link, save_directory, last_id)
             return True
 
@@ -283,28 +283,24 @@ class InstagramAutomation:
             combined_df = pd.DataFrame()
 
             if os.path.exists(csv_file_path):
-                try:
-                    existing_df = pd.read_csv(csv_file_path)
-                    if not existing_df.empty:
-                        combined_df = pd.concat([existing_df, urls], ignore_index=True)
-                    else:
-                        combined_df = urls
-                except pd.errors.EmptyDataError:
-                    combined_df = urls
+                existing_df = pd.read_csv(csv_file_path)
+                
+                if "Views" not in existing_df.columns:
+                    existing_df["Views"] = 0
+                    
+                combined_df = pd.concat([existing_df, urls], ignore_index=True)
             else:
                 combined_df = urls
 
             combined_df.drop_duplicates(subset=["Link"], inplace=True)
-
-            if not combined_df.empty:
-                combined_df = combined_df.sort_values("ID", na_position="first")
-                combined_df["ID"] = range(len(combined_df))
-
+            if not combined_df.empty and "ID" in combined_df.columns:
                 combined_df["ID"] = combined_df["ID"].astype(int)
+                combined_df["Views"] = combined_df["Views"].astype(int)
 
-            combined_df = combined_df[["ID", "Link"]]
+            combined_df = combined_df[["ID", "Link", "Views"]]
 
             combined_df.to_csv(csv_file_path, index=False, header=True)
+
 
 
 def main():

@@ -186,7 +186,7 @@ class InstagramAutomation:
                 if "ID" in df.columns:
                     last_id = df["ID"].max()
 
-        urls = pd.DataFrame(columns=["ID", "Link"])
+        urls = pd.DataFrame(columns=["ID", "Link", "Views"])
         videos = 0
         cont = 0
 
@@ -219,7 +219,7 @@ class InstagramAutomation:
 
             if num_views > 100000:
                 success, new_id = self._handle_video_download(
-                    existing_links, urls, last_id, save_directory, key
+                    existing_links, urls, last_id, save_directory, key, num_views
                 )
 
                 if success:
@@ -228,7 +228,7 @@ class InstagramAutomation:
                     print(
                         f"[Device {self.device_id}] Vídeo {cont} com mais de 100k views: {num_views} views - last_id: {last_id}"
                     )
-
+                self._save_csv(full_path, urls, existing_links)
                 self.driver.back()
 
             videos += 1
@@ -240,7 +240,7 @@ class InstagramAutomation:
         )
 
     def _handle_video_download(
-        self, existing_links, urls, last_id, save_directory, key
+        self, existing_links, urls, last_id, save_directory, key, num_views
     ):
         try:
             share_button = WebDriverWait(self.driver, 10).until(
@@ -273,7 +273,7 @@ class InstagramAutomation:
                 return False, last_id
             else:
                 new_id = last_id + 1
-                urls.loc[len(urls)] = [new_id, link]
+                urls.loc[len(urls)] = [new_id, link, num_views]
 
                 existing_links.add(link)
 
@@ -332,6 +332,10 @@ class InstagramAutomation:
 
             if os.path.exists(csv_file_path):
                 existing_df = pd.read_csv(csv_file_path)
+
+                if "Views" not in existing_df.columns:
+                    existing_df["Views"] = 0
+
                 combined_df = pd.concat([existing_df, urls], ignore_index=True)
             else:
                 combined_df = urls
@@ -340,7 +344,9 @@ class InstagramAutomation:
             if not combined_df.empty and "ID" in combined_df.columns:
                 combined_df["ID"] = combined_df["ID"].astype(int)
 
-            combined_df = combined_df[["ID", "Link"]]
+                combined_df['Views'] = combined_df['Views'].astype(int)
+
+            combined_df = combined_df[["ID", "Link", "Views"]]
 
             combined_df.to_csv(csv_file_path, index=False, header=True)
             print(f"[Device {self.device_id}] CSV saved: {csv_file_path}")
