@@ -1,7 +1,7 @@
 import os
 import speech_recognition as sr
 import pandas as pd
-from speech_recognizer import SpeechRecognizer  # Supondo que o código anterior foi salvo como speech_recognizer.py
+from speech_recognizer import SpeechRecognizer
 
 class AudioProcessor:
     def __init__(self, key):
@@ -10,6 +10,7 @@ class AudioProcessor:
         self.transcriptions_df = pd.DataFrame(columns=['ID', 'Transcription', 'Tag', 'Link'])
 
     def process_audio_file(self, file, link, count):
+        """Process a single audio file: recognize speech and transcribe if recognized."""
         recognized_class = self.recognizer.recognize_speech(file)
         if recognized_class == "Speech":
             transcription = self.transcribe_audio(file)
@@ -22,7 +23,8 @@ class AudioProcessor:
                 })])
 
     @staticmethod
-    def transcribe_audio(file):
+    def transcribe_audio(file) -> str:
+        """Transcribe audio file to text using Google Web Speech API."""
         recognizer = sr.Recognizer()
         try:
             with sr.AudioFile(file) as source:
@@ -35,10 +37,12 @@ class AudioProcessor:
             return None
 
     def save_transcriptions(self):
+        """Save transcriptions to a CSV file."""
         output_path = f'./CSV/{self.key}_audio_transcriptions.csv'
         self.transcriptions_df.to_csv(output_path, index=False)
 
     def process_all_files(self):
+        """Process all audio files for the given key."""
         links = pd.read_csv(f'./CSV/{self.key}/{self.key}.csv')['Link']
         for count, link in enumerate(links):
             video_id = link.split('/')[4]
@@ -50,10 +54,10 @@ class AudioProcessor:
 
 def main():
     hashtags_list = {
-        #"ansiedade": ["#ansiedade", "#transtornodeansiedade"],
+        "ansiedade": ["#ansiedade", "#transtornodeansiedade"],
         "depressao": ["#depressao", "#transtornodepressivo"],
-        #"TDAH": ["#TDAH", "#transtornodedeficitdeatencaohiperatividade"],
-        #"TEA": ["#TEA", "autismo", "#transtornodoespectroautista"],
+        "TDAH": ["#TDAH", "#transtornodedeficitdeatencaohiperatividade"],
+        "TEA": ["#TEA", "autismo", "#transtornodoespectroautista"],
     }
 
     for key in hashtags_list.keys():

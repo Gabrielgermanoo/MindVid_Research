@@ -176,7 +176,6 @@ class InstagramAutomation:
 
         full_path = os.path.join(key_folder, key + ".csv")
 
-        # Use lock when accessing shared file
         with csv_lock:
             existing_links = set()
             last_id = -1
@@ -219,7 +218,6 @@ class InstagramAutomation:
                 self.driver.back()
 
             if num_views > 100000:
-                # Modified to use current_id instead of modifying last_id directly
                 success, new_id = self._handle_video_download(
                     existing_links, urls, last_id, save_directory, key
                 )
@@ -264,10 +262,9 @@ class InstagramAutomation:
 
             time.sleep(2)
 
-            # Use retry mechanism for clipboard
             link = self._get_clipboard_with_retry()
 
-            if not link:  # If link is empty or None
+            if not link:
                 return False, last_id
 
             if link in existing_links:
@@ -278,14 +275,12 @@ class InstagramAutomation:
                 new_id = last_id + 1
                 urls.loc[len(urls)] = [new_id, link]
 
-                # Add to existing_links to prevent duplicates within the same session
                 existing_links.add(link)
 
                 download_success = self._download_video(link, save_directory, new_id)
                 if download_success:
                     return True, new_id
                 else:
-                    # If download fails, remove the entry from dataframe
                     urls.drop(urls[urls["Link"] == link].index, inplace=True)
                     return False, last_id
 
@@ -401,10 +396,8 @@ def distribute_hashtags(devices, hashtags_list):
 
 def run_in_parallel(devices, hashtags_list):
     """Run automation on multiple devices simultaneously"""
-    # Distribute hashtags among devices
     device_hashtags = distribute_hashtags(devices, hashtags_list)
 
-    # Create and start threads
     threads = []
     for device_id, port in devices:
         thread = threading.Thread(
@@ -414,21 +407,16 @@ def run_in_parallel(devices, hashtags_list):
         thread.start()
         print(f"Thread started for device {device_id}")
 
-    # Wait for all threads to complete
     for thread in threads:
         thread.join()
 
 
 def main():
-    # Define devices - can be emulators or physical devices
     devices = [
-        ("RXCY20183EH", 4723),  # First physical device
-        ("RXCY201DBTA", 4724),  # Second physical device
-        # Second device
-        # Add more devices as needed
+        ("RXCY20183EH", 4723),
+        ("RXCY201DBTA", 4724), 
     ]
 
-    # Define hashtags to search
     hashtags_list = {
         "ansiedade": ["#ansiedade"],
         "depressao": ["#depressao", "#transtornodepressivo"],
@@ -436,7 +424,6 @@ def main():
         "TEA": ["#TEA", "#autismo", "#transtornodoespectroautista"],
     }
 
-    # Run in parallel
     run_in_parallel(devices, hashtags_list)
 
     print("All processes completed")
