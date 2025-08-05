@@ -192,7 +192,7 @@ class InstagramAutomation:
             finally:
                 self.driver.back()
 
-            if num_views > 100000:
+            if num_views > 50000:
                 success = self._handle_video_download(
                     existing_links, urls, last_id, save_directory, key, num_views
                 )
@@ -310,15 +310,15 @@ def main():
     time.sleep(5)
 
     hashtags_list = {
-        "ansiedade": ["#ansiedade"],
-        "depressao": ["#depressao", "#transtornodepressivo"],
-        "TDAH": ["#TDAH", "#transtornodedeficitdeatencaohiperatividade"],
-        "TEA": ["#transtornodoespectroautista"],
-        "TEPT": ["#transtornodeestressepostraumatico"],
-        "TBP": ["#bipolar"],
-        "TOC": ["#TOC", "#transtorno_obsessivo_compulsivo"],
-        "suicidio": ["#prevencaosuicidio"],
-        "borderline": ["#borderline"],
+        #"ansiedade": ["#ansiedade"],
+        #"depressao": ["#depressao", "#transtornodepressivo"],
+        #"TDAH": ["#TDAH", "#transtornodedeficitdeatencaohiperatividade"],
+        #"TEA": ["#transtornodoespectroautista"],
+        #"TEPT": ["#PTSD"], #estressepostraumatico,TEPT
+        #"TBP": ["#bipolar"],
+        "TOC": ["#TOC"], #transtornoobsessivocompulsivo,
+        #"suicidio": ["#diganaoaosuicidio"], #prevencaosuicidio,suicidionão,combateaosuicidio
+        #"borderline": ["#borderline"],
     }
 
     save_directory = os.getenv("SAVE_DIRECTORY")

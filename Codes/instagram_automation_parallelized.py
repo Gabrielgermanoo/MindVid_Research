@@ -217,7 +217,7 @@ class InstagramAutomation:
             finally:
                 self.driver.back()
 
-            if num_views > 100000:
+            if num_views > 40000:
                 success, new_id = self._handle_video_download(
                     existing_links, urls, last_id, save_directory, key, num_views
                 )
@@ -424,10 +424,11 @@ def main():
     ]
 
     hashtags_list = {
-        "ansiedade": ["#ansiedade"],
-        "depressao": ["#depressao", "#transtornodepressivo"],
-        "TDAH": ["#TDAH", "#transtornodedeficitdeatencaohiperatividade"],
-        "TEA": ["#TEA", "#autismo", "#transtornodoespectroautista"],
+        #"ansiedade": ["#ansiedade"],
+        #"depressao": ["#depressao", "#transtornodepressivo"],
+        #"TDAH": ["#TDAH", "#transtornodedeficitdeatencaohiperatividade"],
+        #"TEA": ["#TEA", "#autismo", "#transtornodoespectroautista"],
+        "suicidio": ["#prevencaosuicidio"],
     }
 
     run_in_parallel(devices, hashtags_list)
