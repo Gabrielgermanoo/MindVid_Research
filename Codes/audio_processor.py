@@ -2,6 +2,8 @@ import os
 import speech_recognition as sr
 import pandas as pd
 from speech_recognizer import SpeechRecognizer
+import requests
+import re
 
 class AudioProcessor:
     def __init__(self, key):
@@ -43,17 +45,39 @@ class AudioProcessor:
         self.transcriptions_df.to_csv(output_path, index=False)
 
     def process_all_files(self):
-        """Process all audio files for the given key."""
         links = pd.read_csv(f'./CSV/{self.key}/{self.key}.csv')[['Link', 'Views']].values.tolist()
         for count, row in enumerate(links):
             link = row[0]
             views = row[1]
-            video_id = link.split('/')[4]
+            video_id = None
+
+            if "tiktok.com" in link:
+                if "vm.tiktok.com" in link:
+                    video_id = self.resolve_tiktok_shortlink(link)
+                else:
+                    match = re.search(r'/video/(\d+)', link)
+                    if match:
+                        video_id = match.group(1)
+            else:
+                video_id = link.split('/')[4]
+
             filename = f'{count}_{video_id}.wav'
-            wav_file_name = os.path.join(f'./Videos/{self.key}', filename)
+            wav_file_name = os.path.join(f'./Audio/{self.key}', filename)
             if os.path.exists(wav_file_name):
+                print(f"Processing file: {wav_file_name}")
                 self.process_audio_file(wav_file_name, link, count, views)
         self.save_transcriptions()
+
+    def resolve_tiktok_shortlink(self, short_url):
+        try:
+            resp = requests.head(short_url, allow_redirects=True, timeout=10)
+            expanded_url = resp.url
+            match = re.search(r'/video/(\d+)', expanded_url)
+            if match:
+                return match.group(1)
+        except Exception as e:
+            print(f"Erro ao expandir {short_url}: {e}")
+        return None
 
 def main():
     hashtags_list = {
@@ -61,8 +85,9 @@ def main():
         #"depressao": ["#depressao", "#transtornodepressivo"],
         #"TDAH": ["#TDAH", "#transtornodedeficitdeatencaohiperatividade"],
         #"TEA": ["#TEA", "autismo", "#transtornodoespectroautista"],
-        "TEPT": ["#TEPT", "#transtornodeestressepostraumatico"],
+        #"TEPT": ["#TEPT", "#transtornodeestressepostraumatico"],
         #"suicidio": ["#suicidio"]
+        "borderline": ["#borderline"]
     }
 
     for key in hashtags_list.keys():

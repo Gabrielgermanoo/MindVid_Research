@@ -1,0 +1,10 @@
+<?xml version='1.0' encoding='UTF-8'?><Error><Code>SignatureDoesNotMatch</Code><Message>Access denied.</Message><Details>The request signature we calculated does not match the signature you provided. Check your Google secret key and signing method.</Details><StringToSign>GOOG4-RSA-SHA256
+20251018T135138Z
+20251018/auto/storage/goog4_request
+2fce6cab05ba76e04b3b862b9ee96fd9fc304356b71cb6c0df36af506c7f57ae</StringToSign><CanonicalRequest>GET
+/kaggle-models-data/629/762/bundle/archive.tar.gz
+X-Goog-Algorithm=GOOG4-RSA-SHA256&amp;X-Goog-Credential=gcp-kaggle-com%40kaggle-161607.iam.gserviceaccount.com%2F20251018%2Fauto%2Fstorage%2Fgoog4_request&amp;X-Goog-Date=20251018T135138Z&amp;X-Goog-Expires=259200&amp;X-Goog-SignedHeaders=host
+host:storage.googleapis.com
+
+host
+UNSIGNED-PAYLOAD</CanonicalRequest></Error>

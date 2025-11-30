@@ -1,6 +1,7 @@
 import os
 import time
 import pandas as pd
+from pathlib import Path
 from dotenv import load_dotenv
 from appium import webdriver
 from appium.webdriver.common.appiumby import AppiumBy
@@ -19,7 +20,7 @@ class InstagramAutomation:
         self.driver = self._config_driver()
 
     def _config_driver(self):
-        load_dotenv()
+        load_dotenv(dotenv_path=Path(__file__).resolve().parents[1] / ".env")
         capabilities = {
             "platformName": "Android",
             "automationName": "uiautomator2",
@@ -165,7 +166,7 @@ class InstagramAutomation:
         videos = 0
         cont = len(existing_links)
 
-        while cont < 100:
+        while cont < 200:
             try:
                 likes_button = WebDriverWait(self.driver, 10).until(
                     EC.presence_of_element_located(
@@ -192,7 +193,7 @@ class InstagramAutomation:
             finally:
                 self.driver.back()
 
-            if num_views > 50000:
+            if num_views > 10000:
                 success = self._handle_video_download(
                     existing_links, urls, last_id, save_directory, key, num_views
                 )
@@ -315,10 +316,10 @@ def main():
         #"TDAH": ["#TDAH", "#transtornodedeficitdeatencaohiperatividade"],
         #"TEA": ["#transtornodoespectroautista"],
         #"TEPT": ["#PTSD"], #estressepostraumatico,TEPT
-        #"TBP": ["#bipolar"],
-        "TOC": ["#TOC"], #transtornoobsessivocompulsivo,
+        #"TBP": ["#transtornoafetivobipolar"],
+        #"TOC": ["#TOC"], #transtornoobsessivocompulsivo,
         #"suicidio": ["#diganaoaosuicidio"], #prevencaosuicidio,suicidionão,combateaosuicidio
-        #"borderline": ["#borderline"],
+        "borderline": ["#borderline"], #transtornoborderline
     }
 
     save_directory = os.getenv("SAVE_DIRECTORY")
