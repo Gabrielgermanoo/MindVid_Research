@@ -40,7 +40,7 @@ class SpeechRecognizer:
         """Recognize speech in an audio file and return the inferred class."""
         sample_rate, wav_data = wavfile.read(file, "rb")
 
-        if wav_data.ndim > 1:  # Convert stereo to mono if necessary
+        if wav_data.ndim > 1:
             wav_data = np.mean(wav_data, axis=1)
 
         sample_rate, wav_data = self._ensure_sample_rate(sample_rate, wav_data)

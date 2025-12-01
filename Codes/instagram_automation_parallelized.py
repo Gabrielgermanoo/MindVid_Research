@@ -4,6 +4,7 @@ import pandas as pd
 import threading
 from dotenv import load_dotenv
 from appium import webdriver
+from pathlib import Path
 from appium.webdriver.common.appiumby import AppiumBy
 from appium.options.android import UiAutomator2Options
 from selenium.webdriver.support.ui import WebDriverWait
@@ -22,7 +23,7 @@ class InstagramAutomation:
         self.driver = self._config_driver()
 
     def _config_driver(self):
-        load_dotenv()
+        load_dotenv(dotenv_path=Path(__file__).resolve().parents[1] / ".env")
         capabilities = {
             "platformName": "Android",
             "automationName": "uiautomator2",
@@ -419,8 +420,8 @@ def run_in_parallel(devices, hashtags_list):
 
 def main():
     devices = [
-        ("RXCY20183EH", 4723),
-        ("RXCY201DBTA", 4724), 
+        ("RXCY201DBTA", 4724),
+        ("RXCY20183JY", 4725),
     ]
 
     hashtags_list = {
@@ -428,7 +429,8 @@ def main():
         #"depressao": ["#depressao", "#transtornodepressivo"],
         #"TDAH": ["#TDAH", "#transtornodedeficitdeatencaohiperatividade"],
         #"TEA": ["#TEA", "#autismo", "#transtornodoespectroautista"],
-        "suicidio": ["#prevencaosuicidio"],
+        #"suicidio": ["#prevencaosuicidio"],
+        "TBP": ["#TBP", "#bipolar"],
     }
 
     run_in_parallel(devices, hashtags_list)
