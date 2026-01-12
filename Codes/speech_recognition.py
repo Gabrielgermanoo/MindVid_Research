@@ -18,7 +18,7 @@ class SpeechRecognizer:
         return self._class_names_from_csv(class_map_path)
 
     @staticmethod
-    def _class_names_from_csv(class_map_csv_path) -> list:
+    def _class_names_from_csv(class_map_csv_path: str) -> list:
         """Load class names from a CSV file."""
         class_names = []
         with tf.io.gfile.GFile(class_map_csv_path) as csvfile:

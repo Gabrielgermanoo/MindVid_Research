@@ -11,18 +11,43 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 import yt_dlp as youtube_dl
+from typing import Any, Dict, List, Tuple, Set
 
 # Global lock for CSV file access
 csv_lock = threading.Lock()
 
 
 class InstagramAutomation:
-    def __init__(self, device_id="emulator-5554", appium_port=4723):
-        self.device_id = device_id
-        self.appium_port = appium_port
-        self.driver = self._config_driver()
+    """
+    Automation helper for interacting with Instagram on an Android device via Appium.
 
-    def _config_driver(self):
+    Attributes:
+        device_id (str): Device identifier or emulator name.
+        appium_port (int): Port where Appium server is running.
+        driver (Any): Appium webdriver instance.
+    """
+
+    def __init__(
+        self, device_id: str = "emulator-5554", appium_port: int = 4723
+    ) -> None:
+        """
+        Initialize InstagramAutomation.
+
+        Parameters:
+            device_id (str): Android device id or name.
+            appium_port (int): Appium server port.
+        """
+        self.device_id: str = device_id
+        self.appium_port: int = appium_port
+        self.driver: Any = self._config_driver()
+
+    def _config_driver(self) -> Any:
+        """
+        Configure and return an Appium webdriver.Remote instance.
+
+        Returns:
+            Any: Configured Appium driver (webdriver.Remote).
+        """
         load_dotenv(dotenv_path=Path(__file__).resolve().parents[1] / ".env")
         capabilities = {
             "platformName": "Android",
@@ -43,23 +68,41 @@ class InstagramAutomation:
             command_executor=appium_server_url, options=capabilities_options
         )
 
-    def swipe_up(self, duration=800):
+    def swipe_up(self, duration: int = 800) -> None:
+        """
+        Swipe up on the device screen.
+
+        Parameters:
+            duration (int): Duration of the swipe in milliseconds.
+        """
         size = self.driver.get_window_size()
         start_x = size["width"] // 2
         start_y = size["height"] // 2
         end_y = size["height"] // 4
         self.driver.swipe(start_x, start_y, start_x, end_y, duration)
 
-    def find_instagram_app(self):
+    def find_instagram_app(self) -> Any:
+        """
+        Find the Instagram app icon element.
+
+        Returns:
+            Any: WebElement for the Instagram app icon.
+        """
         return self.driver.find_element(
             AppiumBy.ANDROID_UIAUTOMATOR, 'new UiSelector().text("Instagram")'
         )
 
-    def open_instagram_app(self):
+    def open_instagram_app(self) -> None:
+        """
+        Open the Instagram application by clicking its icon.
+        """
         self.find_instagram_app().click()
         print(f"[Device {self.device_id}] Instagram app opened")
 
-    def login(self):
+    def login(self) -> None:
+        """
+        Perform login using INSTAGRAM_USERNAME and INSTAGRAM_PASSWORD from environment.
+        """
         username = os.getenv("INSTAGRAM_USERNAME")
         password = os.getenv("INSTAGRAM_PASSWORD")
 
@@ -84,11 +127,28 @@ class InstagramAutomation:
         ).click()
         print(f"[Device {self.device_id}] Logged in as {username}")
 
-    def is_link_in_csv(self, link, csv_file):
+    def is_link_in_csv(self, link: str, csv_file: str) -> bool:
+        """
+        Check if a link exists in a CSV file.
+
+        Parameters:
+            link (str): Link to check.
+            csv_file (str): Path to CSV file.
+
+        Returns:
+            bool: True if link exists, False otherwise.
+        """
         df = pd.read_csv(csv_file)
         return df["Link"].str.contains(link).any()
 
-    def search_hashtag(self, text, first):
+    def search_hashtag(self, text: str, first: bool) -> None:
+        """
+        Search a hashtag within Instagram app.
+
+        Parameters:
+            text (str): Hashtag or search text.
+            first (bool): If True, use first-run selector for search icon.
+        """
         time.sleep(5)
         if first:
             search_button = self.driver.find_element(
@@ -153,8 +213,17 @@ class InstagramAutomation:
 
         print(f"[Device {self.device_id}] Searching hashtag: {text}")
 
-    def _get_clipboard_with_retry(self, max_attempts=3, delay=2):
-        """Get clipboard text with retry mechanism"""
+    def _get_clipboard_with_retry(self, max_attempts: int = 3, delay: int = 2) -> str:
+        """
+        Get clipboard text with a retry mechanism.
+
+        Parameters:
+            max_attempts (int): Number of retry attempts.
+            delay (int): Delay in seconds between attempts.
+
+        Returns:
+            str: Clipboard text or empty string on failure.
+        """
         for attempt in range(max_attempts):
             try:
                 return self.driver.get_clipboard_text()
@@ -170,7 +239,14 @@ class InstagramAutomation:
                     )
                     return ""
 
-    def download_videos(self, save_directory, key):
+    def download_videos(self, save_directory: str, key: str) -> None:
+        """
+        Browse through videos, collect links and download videos meeting criteria.
+
+        Parameters:
+            save_directory (str): Directory where videos will be saved.
+            key (str): Subfolder/key name used to store CSV and videos.
+        """
         csv_path = os.getenv("CSV_PATH")
         key_folder = os.path.join(csv_path, key)
         os.makedirs(key_folder, exist_ok=True)
@@ -178,7 +254,7 @@ class InstagramAutomation:
         full_path = os.path.join(key_folder, key + ".csv")
 
         with csv_lock:
-            existing_links = set()
+            existing_links: Set[str] = set()
             last_id = -1
 
             if os.path.exists(full_path):
@@ -241,8 +317,28 @@ class InstagramAutomation:
         )
 
     def _handle_video_download(
-        self, existing_links, urls, last_id, save_directory, key, num_views
-    ):
+        self,
+        existing_links: Set[str],
+        urls: pd.DataFrame,
+        last_id: int,
+        save_directory: str,
+        key: str,
+        num_views: int,
+    ) -> Tuple[bool, int]:
+        """
+        Handle the process of copying a video's link, checking duplicates and downloading.
+
+        Parameters:
+            existing_links (Set[str]): Set of links already processed.
+            urls (pd.DataFrame): DataFrame that accumulates new records.
+            last_id (int): Last numeric ID used.
+            save_directory (str): Directory to save downloads.
+            key (str): Current key/subfolder name.
+            num_views (int): Number of views for the current video.
+
+        Returns:
+            Tuple[bool, int]: (success, new_id). success True if download succeeded, new_id is updated ID.
+        """
         try:
             share_button = WebDriverWait(self.driver, 10).until(
                 EC.presence_of_element_located(
@@ -291,7 +387,18 @@ class InstagramAutomation:
             )
             return False, last_id
 
-    def _download_video(self, link, save_directory, last_id):
+    def _download_video(self, link: str, save_directory: str, last_id: int) -> bool:
+        """
+        Download a video/audio using yt_dlp.
+
+        Parameters:
+            link (str): URL to download.
+            save_directory (str): Directory to store the downloaded file.
+            last_id (int): Numeric id used in the output filename.
+
+        Returns:
+            bool: True if download was successful, False otherwise.
+        """
         ydl_opts = {
             "format": "bestaudio/best",
             "postprocessors": [
@@ -316,7 +423,10 @@ class InstagramAutomation:
             print(f"[Device {self.device_id}] Error downloading video {link}: {str(e)}")
             return False
 
-    def _swipe_to_next_video(self):
+    def _swipe_to_next_video(self) -> None:
+        """
+        Swipe up to advance to the next video and wait a small delay.
+        """
         size = self.driver.get_window_size()
         self.driver.swipe(
             size["width"] // 2,
@@ -327,7 +437,17 @@ class InstagramAutomation:
         )
         time.sleep(3)
 
-    def _save_csv(self, csv_file_path, urls, existing_links):
+    def _save_csv(
+        self, csv_file_path: str, urls: pd.DataFrame, existing_links: Set[str]
+    ) -> None:
+        """
+        Save the accumulated DataFrame to CSV, merging with existing file and ensuring schema.
+
+        Parameters:
+            csv_file_path (str): Destination CSV file path.
+            urls (pd.DataFrame): New rows to add.
+            existing_links (Set[str]): Set of existing links (not directly used here, but kept for consistency).
+        """
         with csv_lock:
             combined_df = pd.DataFrame()
 
@@ -345,7 +465,7 @@ class InstagramAutomation:
             if not combined_df.empty and "ID" in combined_df.columns:
                 combined_df["ID"] = combined_df["ID"].astype(int)
 
-                combined_df['Views'] = combined_df['Views'].astype(int)
+                combined_df["Views"] = combined_df["Views"].astype(int)
 
             combined_df = combined_df[["ID", "Link", "Views"]]
 
@@ -353,8 +473,17 @@ class InstagramAutomation:
             print(f"[Device {self.device_id}] CSV saved: {csv_file_path}")
 
 
-def process_device(device_id, appium_port, hashtags_to_process):
-    """Process a single device with specific hashtags"""
+def process_device(
+    device_id: str, appium_port: int, hashtags_to_process: Dict[str, List[str]]
+) -> None:
+    """
+    Process a single device with specific hashtags.
+
+    Parameters:
+        device_id (str): Device identifier.
+        appium_port (int): Appium server port for that device.
+        hashtags_to_process (Dict[str, List[str]]): Mapping of key -> list of hashtags to process.
+    """
     try:
         instagram_bot = InstagramAutomation(
             device_id=device_id, appium_port=appium_port
@@ -377,35 +506,49 @@ def process_device(device_id, appium_port, hashtags_to_process):
         print(f"[Device {device_id}] Error in process_device: {str(e)}")
 
 
-def distribute_hashtags(devices, hashtags_list):
-    """Distribute hashtags evenly across devices"""
-    device_hashtags = {}
+def distribute_hashtags(
+    devices: List[Tuple[str, int]], hashtags_list: Dict[str, List[str]]
+) -> Dict[str, Dict[str, List[str]]]:
+    """
+    Distribute hashtags evenly across devices.
+
+    Parameters:
+        devices (List[Tuple[str, int]]): List of (device_id, port) tuples.
+        hashtags_list (Dict[str, List[str]]): Mapping of key -> list of hashtags.
+
+    Returns:
+        Dict[str, Dict[str, List[str]]]: Mapping of device_id -> (key -> list of hashtags).
+    """
+    device_hashtags: Dict[str, Dict[str, List[str]]] = {}
     device_count = len(devices)
 
-    # Initialize empty dictionaries for each device
     for device_id, _ in devices:
         device_hashtags[device_id] = {}
 
-    # Distribute hashtags by round-robin
     device_index = 0
     for key, hashtags in hashtags_list.items():
-        # Get current device ID
         current_device = devices[device_index][0]
 
-        # Assign this hashtag to the current device
         device_hashtags[current_device][key] = hashtags
 
-        # Move to next device
         device_index = (device_index + 1) % device_count
 
     return device_hashtags
 
 
-def run_in_parallel(devices, hashtags_list):
-    """Run automation on multiple devices simultaneously"""
+def run_in_parallel(
+    devices: List[Tuple[str, int]], hashtags_list: Dict[str, List[str]]
+) -> None:
+    """
+    Run automation on multiple devices simultaneously.
+
+    Parameters:
+        devices (List[Tuple[str, int]]): List of (device_id, port) tuples.
+        hashtags_list (Dict[str, List[str]]): Mapping of key -> list of hashtags.
+    """
     device_hashtags = distribute_hashtags(devices, hashtags_list)
 
-    threads = []
+    threads: List[threading.Thread] = []
     for device_id, port in devices:
         thread = threading.Thread(
             target=process_device, args=(device_id, port, device_hashtags[device_id])
@@ -418,18 +561,21 @@ def run_in_parallel(devices, hashtags_list):
         thread.join()
 
 
-def main():
-    devices = [
+def main() -> None:
+    """
+    Entry point: define devices and hashtags and start parallel processing.
+    """
+    devices: List[Tuple[str, int]] = [
         ("RXCY201DBTA", 4724),
         ("RXCY20183JY", 4725),
     ]
 
-    hashtags_list = {
-        #"ansiedade": ["#ansiedade"],
-        #"depressao": ["#depressao", "#transtornodepressivo"],
-        #"TDAH": ["#TDAH", "#transtornodedeficitdeatencaohiperatividade"],
-        #"TEA": ["#TEA", "#autismo", "#transtornodoespectroautista"],
-        #"suicidio": ["#prevencaosuicidio"],
+    hashtags_list: Dict[str, List[str]] = {
+        # "ansiedade": ["#ansiedade"],
+        # "depressao": ["#depressao", "#transtornodepressivo"],
+        # "TDAH": ["#TDAH", "#transtornodedeficitdeatencaohiperatividade"],
+        # "TEA": ["#TEA", "#autismo", "#transtornodoespectroautista"],
+        # "suicidio": ["#prevencaosuicidio"],
         "TBP": ["#TBP", "#bipolar"],
     }
 
