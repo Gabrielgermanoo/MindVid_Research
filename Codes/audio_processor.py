@@ -1,7 +1,7 @@
 import os
 import speech_recognition as sr
 import pandas as pd
-from speech_recognizer import SpeechRecognizer
+from speech_recognition import SpeechRecognizer
 import requests
 import re
 
